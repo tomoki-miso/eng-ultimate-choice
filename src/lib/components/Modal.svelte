@@ -6,13 +6,19 @@
 		question,
 		onClose,
 		votes = undefined,
+		myVote = undefined,
+		onVote = undefined,
 		onCloseVoting = undefined
 	}: {
 		question: Question;
 		onClose: () => void;
 		votes?: { A: number; B: number };
+		myVote?: 'A' | 'B' | null;
+		onVote?: (choice: 'A' | 'B') => void;
 		onCloseVoting?: () => void;
 	} = $props();
+
+	let canVote = $derived(onVote && !myVote);
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
@@ -39,15 +45,29 @@
 <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
 <div class="backdrop" onclick={handleBackdropClick}>
 	<div class="modal" class:has-votes={votes}>
-		<div class="choice choice-a">
-			<span class="label">A</span>
-			<span class="text">{question.choiceA}</span>
-		</div>
+		{#if canVote}
+			<button class="choice choice-a votable" onclick={() => onVote?.('A')}>
+				<span class="label">A</span>
+				<span class="text">{question.choiceA}</span>
+			</button>
+		{:else}
+			<div class="choice choice-a" class:dimmed={myVote === 'B'}>
+				<span class="label">A</span>
+				<span class="text">{question.choiceA}</span>
+			</div>
+		{/if}
 		<div class="vs">or</div>
-		<div class="choice choice-b">
-			<span class="label">B</span>
-			<span class="text">{question.choiceB}</span>
-		</div>
+		{#if canVote}
+			<button class="choice choice-b votable" onclick={() => onVote?.('B')}>
+				<span class="label">B</span>
+				<span class="text">{question.choiceB}</span>
+			</button>
+		{:else}
+			<div class="choice choice-b" class:dimmed={myVote === 'A'}>
+				<span class="label">B</span>
+				<span class="text">{question.choiceB}</span>
+			</div>
+		{/if}
 		{#if votes}
 			<div class="vote-section">
 				<VoteBar {votes} />
@@ -114,6 +134,39 @@
 		align-items: center;
 		gap: 8px;
 		text-align: center;
+	}
+
+	.choice.votable {
+		background: rgba(255, 255, 255, 0.03);
+		border: 2px solid transparent;
+		border-radius: 12px;
+		padding: 12px 16px;
+		cursor: pointer;
+		transition: all 0.2s;
+		font-family: inherit;
+		width: 100%;
+	}
+
+	.choice-a.votable {
+		border-color: rgba(233, 69, 96, 0.3);
+	}
+
+	.choice-a.votable:hover {
+		background: rgba(233, 69, 96, 0.15);
+		border-color: #e94560;
+	}
+
+	.choice-b.votable {
+		border-color: rgba(83, 216, 251, 0.3);
+	}
+
+	.choice-b.votable:hover {
+		background: rgba(83, 216, 251, 0.15);
+		border-color: #53d8fb;
+	}
+
+	.choice.dimmed {
+		opacity: 0.4;
 	}
 
 	.label {

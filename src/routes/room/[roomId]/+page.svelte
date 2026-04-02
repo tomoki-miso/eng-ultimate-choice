@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { questions } from '$lib/data/questions';
 	import { shuffleAndPick } from '$lib/utils/shuffle';
 	import { RoomState } from '$lib/firebase/roomState.svelte';
@@ -11,6 +10,8 @@
 	let room = $state<RoomState | null>(null);
 	let modalQuestion = $state<Question | null>(null);
 	let initialized = $state(false);
+	let hostName = $state('');
+	let nameEntered = $state(false);
 
 	let flippedSet = $derived(new Set(room?.flippedIds ?? []));
 	let flippedCount = $derived(flippedSet.size);
@@ -27,17 +28,23 @@
 		setTimeout(() => { copied = false; }, 2000);
 	}
 
-	onMount(() => {
+	function startRoom() {
+		const name = hostName.trim();
+		if (!name) return;
+		nameEntered = true;
+
 		const r = new RoomState(data.roomId);
 		room = r;
 
 		const selected = shuffleAndPick(questions, 16);
 		r.createRoom(selected).then(() => {
-			r.connect();
+			r.connect(name);
 			initialized = true;
 		});
+	}
 
-		return () => r.destroy();
+	$effect(() => {
+		return () => room?.destroy();
 	});
 
 	function handleFlip(id: number) {
@@ -68,7 +75,22 @@
 	<title>ホスト - エンジニア究極の二択</title>
 </svelte:head>
 
-{#if room && initialized}
+{#if !nameEntered}
+	<div class="name-screen">
+		<h1>エンジニア究極の二択</h1>
+		<p class="subtitle">ホスト</p>
+		<form onsubmit={(e) => { e.preventDefault(); startRoom(); }}>
+			<input
+				type="text"
+				bind:value={hostName}
+				placeholder="あなたの名前"
+				maxlength="20"
+				class="name-input"
+			/>
+			<button type="submit" class="start-btn" disabled={!hostName.trim()}>ルームを開始</button>
+		</form>
+	</div>
+{:else if room && initialized}
 	<div class="container">
 		<header>
 			<h1>エンジニア究極の二択</h1>
@@ -107,6 +129,8 @@
 			question={modalQuestion}
 			onClose={() => { modalQuestion = null; }}
 			votes={room.votes}
+			myVote={room.myVote}
+			onVote={(choice) => room?.vote(choice)}
 			onCloseVoting={() => room?.closeVoting()}
 		/>
 	{/if}
@@ -242,6 +266,86 @@
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);
 		gap: 16px;
+	}
+
+	.name-screen {
+		max-width: 400px;
+		margin: 0 auto;
+		padding: 48px 16px;
+		min-height: 100dvh;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+
+	.name-screen h1 {
+		font-size: 2rem;
+		font-weight: 800;
+		background: linear-gradient(90deg, #e94560, #53d8fb);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-clip: text;
+		margin: 0 0 8px;
+	}
+
+	.subtitle {
+		color: #888;
+		margin: 0 0 32px;
+		font-size: 1rem;
+	}
+
+	.name-screen form {
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.name-input {
+		width: 100%;
+		padding: 14px;
+		border: 1.5px solid #444;
+		border-radius: 10px;
+		background: rgba(255, 255, 255, 0.05);
+		color: #e0e0e0;
+		font-size: 1.2rem;
+		text-align: center;
+		font-family: inherit;
+		box-sizing: border-box;
+	}
+
+	.name-input::placeholder {
+		color: #555;
+	}
+
+	.name-input:focus {
+		outline: none;
+		border-color: #e94560;
+	}
+
+	.start-btn {
+		width: 100%;
+		padding: 14px;
+		border: none;
+		border-radius: 10px;
+		background: #e94560;
+		color: #fff;
+		font-size: 1.1rem;
+		font-weight: 700;
+		cursor: pointer;
+		transition: all 0.2s;
+		font-family: inherit;
+	}
+
+	.start-btn:hover:not(:disabled) {
+		background: #d63b55;
+	}
+
+	.start-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
 	}
 
 	.loading {
