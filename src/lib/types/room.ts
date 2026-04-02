@@ -10,6 +10,6 @@ export type RoomData = {
 };
 
 export type PresenceData = {
-	visitorId: string;
+	name: string;
 	joinedAt: number;
 };

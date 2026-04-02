@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { RoomState } from '$lib/firebase/roomState.svelte';
 	import VoteBar from '$lib/components/VoteBar.svelte';
-	import type { Question } from '$lib/data/questions';
 
 	let { data } = $props();
 	let room = $state<RoomState | null>(null);
+	let userName = $state('');
+	let joined = $state(false);
 
 	let currentQuestion = $derived.by(() => {
 		if (!room || room.currentQuestionId === null) return null;
@@ -13,6 +13,7 @@
 	});
 
 	let state = $derived.by(() => {
+		if (!joined) return 'name-entry' as const;
 		if (!room?.connected) return 'connecting' as const;
 		if (!currentQuestion) return 'waiting' as const;
 		if (room.myVote) return 'voted' as const;
@@ -20,16 +21,22 @@
 		return 'waiting' as const;
 	});
 
-	onMount(() => {
+	function join() {
+		const name = userName.trim();
+		if (!name) return;
 		const r = new RoomState(data.roomId);
 		room = r;
-		r.connect();
-		return () => r.destroy();
-	});
+		r.connect(name);
+		joined = true;
+	}
 
 	function vote(choice: 'A' | 'B') {
 		room?.vote(choice);
 	}
+
+	$effect(() => {
+		return () => room?.destroy();
+	});
 </script>
 
 <svelte:head>
@@ -42,7 +49,21 @@
 		<span class="room-code">ルーム: {data.roomId}</span>
 	</header>
 
-	{#if state === 'connecting'}
+	{#if state === 'name-entry'}
+		<div class="name-entry">
+			<p class="name-prompt">名前を入力してください</p>
+			<form onsubmit={(e) => { e.preventDefault(); join(); }}>
+				<input
+					type="text"
+					bind:value={userName}
+					placeholder="あなたの名前"
+					maxlength="20"
+					class="name-input"
+				/>
+				<button type="submit" class="join-btn" disabled={!userName.trim()}>参加する</button>
+			</form>
+		</div>
+	{:else if state === 'connecting'}
 		<div class="status">接続中...</div>
 	{:else if state === 'waiting'}
 		<div class="status">
@@ -114,6 +135,74 @@
 		font-weight: 700;
 		color: #53d8fb;
 		letter-spacing: 0.1em;
+	}
+
+	.name-entry {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 16px;
+	}
+
+	.name-prompt {
+		margin: 0;
+		font-size: 1.2rem;
+		font-weight: 600;
+		color: #e0e0e0;
+	}
+
+	.name-entry form {
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.name-input {
+		width: 100%;
+		padding: 14px;
+		border: 1.5px solid #444;
+		border-radius: 10px;
+		background: rgba(255, 255, 255, 0.05);
+		color: #e0e0e0;
+		font-size: 1.2rem;
+		text-align: center;
+		font-family: inherit;
+		box-sizing: border-box;
+	}
+
+	.name-input::placeholder {
+		color: #555;
+	}
+
+	.name-input:focus {
+		outline: none;
+		border-color: #53d8fb;
+	}
+
+	.join-btn {
+		width: 100%;
+		padding: 14px;
+		border: none;
+		border-radius: 10px;
+		background: #53d8fb;
+		color: #1a1a2e;
+		font-size: 1.1rem;
+		font-weight: 700;
+		cursor: pointer;
+		transition: all 0.2s;
+		font-family: inherit;
+	}
+
+	.join-btn:hover:not(:disabled) {
+		background: #3cc5e8;
+	}
+
+	.join-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
 	}
 
 	.status {

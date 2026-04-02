@@ -14,9 +14,11 @@ export class RoomState {
 	votingOpen = $state(false);
 	votes = $state<{ A: number; B: number }>({ A: 0, B: 0 });
 	participantCount = $state(0);
+	participants = $state<{ name: string }[]>([]);
 	myVote = $state<'A' | 'B' | null>(null);
 	connected = $state(false);
 
+	private userName?: string;
 	private roomRef;
 	private presenceRef;
 	private myPresenceRef;
@@ -30,7 +32,8 @@ export class RoomState {
 		this.myPresenceRef = ref(db, `rooms/${roomId}/presence/${this.visitorId}`);
 	}
 
-	connect() {
+	connect(name?: string) {
+		this.userName = name;
 		// Listen to room data
 		const roomUnsub = onValue(this.roomRef, (snapshot) => {
 			const data = snapshot.val() as RoomData | null;
@@ -55,16 +58,23 @@ export class RoomState {
 		const connectedRef = ref(db, '.info/connected');
 		const connUnsub = onValue(connectedRef, (snap) => {
 			if (snap.val() === true) {
-				set(this.myPresenceRef, { joinedAt: Date.now() });
+				set(this.myPresenceRef, { name: this.userName || '', joinedAt: Date.now() });
 				onDisconnect(this.myPresenceRef).remove();
 			}
 		});
 		this.unsubscribers.push(() => off(connectedRef));
 
-		// Listen to presence count
+		// Listen to presence count and names
 		const presUnsub = onValue(this.presenceRef, (snapshot) => {
-			const presence = snapshot.val();
-			this.participantCount = presence ? Object.keys(presence).length : 0;
+			const presence = snapshot.val() as Record<string, { name: string; joinedAt: number }> | null;
+			if (presence) {
+				const entries = Object.values(presence);
+				this.participantCount = entries.length;
+				this.participants = entries.map((p) => ({ name: p.name }));
+			} else {
+				this.participantCount = 0;
+				this.participants = [];
+			}
 		});
 		this.unsubscribers.push(() => off(this.presenceRef));
 	}

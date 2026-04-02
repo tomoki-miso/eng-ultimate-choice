@@ -19,6 +19,13 @@
 			? `${window.location.origin}/room/${data.roomId}/join`
 			: ''
 	);
+	let copied = $state(false);
+
+	async function copyLink() {
+		await navigator.clipboard.writeText(joinUrl);
+		copied = true;
+		setTimeout(() => { copied = false; }, 2000);
+	}
 
 	onMount(() => {
 		const r = new RoomState(data.roomId);
@@ -69,8 +76,18 @@
 				<span class="room-code">ルーム: {data.roomId}</span>
 				<span class="participant-count">参加者: {room.participantCount}人</span>
 			</div>
+			{#if room.participants.length > 0}
+				<div class="participant-names">
+					{#each room.participants.filter(p => p.name) as p}
+						<span class="participant-tag">{p.name}</span>
+					{/each}
+				</div>
+			{/if}
 			<div class="join-info">
 				<span class="join-url">{joinUrl}</span>
+				<button class="copy-btn" onclick={copyLink}>
+					{copied ? 'コピー済み!' : 'コピー'}
+				</button>
 			</div>
 			<div class="controls">
 				<span class="counter">{flippedCount} / {room.questions.length}</span>
@@ -139,14 +156,54 @@
 		color: #888;
 	}
 
+	.participant-names {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 6px;
+		margin-bottom: 8px;
+	}
+
+	.participant-tag {
+		font-size: 0.75rem;
+		color: #aaa;
+		background: rgba(83, 216, 251, 0.1);
+		border: 1px solid rgba(83, 216, 251, 0.2);
+		border-radius: 12px;
+		padding: 2px 10px;
+	}
+
 	.join-info {
 		margin-bottom: 12px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
 	}
 
 	.join-url {
 		font-size: 0.8rem;
 		color: #666;
 		word-break: break-all;
+	}
+
+	.copy-btn {
+		background: transparent;
+		border: 1px solid #53d8fb;
+		color: #53d8fb;
+		padding: 3px 12px;
+		border-radius: 4px;
+		font-size: 0.75rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.2s;
+		font-family: inherit;
+		white-space: nowrap;
+	}
+
+	.copy-btn:hover {
+		background: #53d8fb;
+		color: #1a1a2e;
 	}
 
 	.controls {
