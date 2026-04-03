@@ -1,23 +1,37 @@
 <script lang="ts">
 	import type { Question } from '$lib/data/questions';
+	import type { VotingMode, SpectrumVoter } from '$lib/types/room';
 	import VoteBar from './VoteBar.svelte';
+	import SpectrumSlider from './SpectrumSlider.svelte';
+	import SpectrumBar from './SpectrumBar.svelte';
 
 	let {
 		question,
 		onClose,
 		votes = undefined,
+		voterNames = undefined,
 		myVote = undefined,
 		onVote = undefined,
-		onCloseVoting = undefined
+		onCloseVoting = undefined,
+		votingMode = 'binary',
+		spectrumVoters = {},
+		mySpectrumValue = null,
+		onSpectrumVote = undefined
 	}: {
 		question: Question;
 		onClose: () => void;
 		votes?: { A: number; B: number };
+		voterNames?: { A: string[]; B: string[] };
 		myVote?: 'A' | 'B' | null;
 		onVote?: (choice: 'A' | 'B') => void;
 		onCloseVoting?: () => void;
+		votingMode?: VotingMode;
+		spectrumVoters?: Record<string, SpectrumVoter>;
+		mySpectrumValue?: number | null;
+		onSpectrumVote?: (value: number) => void;
 	} = $props();
 
+	let isSpectrum = $derived(votingMode === 'spectrum');
 	let canVote = $derived(onVote && !myVote);
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -44,34 +58,59 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
 <div class="backdrop" onclick={handleBackdropClick}>
-	<div class="modal" class:has-votes={votes}>
-		{#if canVote}
-			<button class="choice choice-a votable" onclick={() => onVote?.('A')}>
-				<span class="label">A</span>
-				<span class="text">{question.choiceA}</span>
-			</button>
-		{:else}
-			<div class="choice choice-a" class:dimmed={myVote === 'B'}>
+	<div class="modal" class:has-votes={votes || isSpectrum}>
+		{#if isSpectrum}
+			<div class="choice choice-a">
 				<span class="label">A</span>
 				<span class="text">{question.choiceA}</span>
 			</div>
-		{/if}
-		<div class="vs">or</div>
-		{#if canVote}
-			<button class="choice choice-b votable" onclick={() => onVote?.('B')}>
+			<div class="vs">or</div>
+			<div class="choice choice-b">
 				<span class="label">B</span>
 				<span class="text">{question.choiceB}</span>
-			</button>
+			</div>
+			{#if onSpectrumVote}
+				<div class="spectrum-section">
+					<SpectrumSlider
+						value={mySpectrumValue ?? 50}
+						choiceA={question.choiceA}
+						choiceB={question.choiceB}
+						onValueChange={onSpectrumVote}
+					/>
+				</div>
+			{/if}
+			<div class="spectrum-section">
+				<SpectrumBar {spectrumVoters} />
+			</div>
 		{:else}
-			<div class="choice choice-b" class:dimmed={myVote === 'A'}>
-				<span class="label">B</span>
-				<span class="text">{question.choiceB}</span>
-			</div>
-		{/if}
-		{#if votes}
-			<div class="vote-section">
-				<VoteBar {votes} />
-			</div>
+			{#if canVote}
+				<button class="choice choice-a votable" onclick={() => onVote?.('A')}>
+					<span class="label">A</span>
+					<span class="text">{question.choiceA}</span>
+				</button>
+			{:else}
+				<div class="choice choice-a" class:dimmed={myVote === 'B'}>
+					<span class="label">A</span>
+					<span class="text">{question.choiceA}</span>
+				</div>
+			{/if}
+			<div class="vs">or</div>
+			{#if canVote}
+				<button class="choice choice-b votable" onclick={() => onVote?.('B')}>
+					<span class="label">B</span>
+					<span class="text">{question.choiceB}</span>
+				</button>
+			{:else}
+				<div class="choice choice-b" class:dimmed={myVote === 'A'}>
+					<span class="label">B</span>
+					<span class="text">{question.choiceB}</span>
+				</div>
+			{/if}
+			{#if votes}
+				<div class="vote-section">
+					<VoteBar {votes} {voterNames} />
+				</div>
+			{/if}
 		{/if}
 		<button class="close-btn" onclick={handleClose}>閉じる</button>
 	</div>
@@ -203,6 +242,11 @@
 	}
 
 	.vote-section {
+		width: 100%;
+		padding: 0 4px;
+	}
+
+	.spectrum-section {
 		width: 100%;
 		padding: 0 4px;
 	}

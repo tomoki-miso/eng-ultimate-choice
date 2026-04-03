@@ -113,6 +113,12 @@
 			</div>
 			<div class="controls">
 				<span class="counter">{flippedCount} / {room.questions.length}</span>
+				<button
+					class="mode-btn"
+					onclick={() => room?.setVotingMode(room.votingMode === 'binary' ? 'spectrum' : 'binary')}
+				>
+					{room.votingMode === 'binary' ? '白黒つけないモードへ' : '二択モードへ'}
+				</button>
 				<button class="reset-btn" onclick={reset}>リセット</button>
 			</div>
 		</header>
@@ -129,9 +135,14 @@
 			question={modalQuestion}
 			onClose={() => { modalQuestion = null; }}
 			votes={room.votes}
+			voterNames={room.voterNames}
 			myVote={room.myVote}
 			onVote={(choice) => room?.vote(choice)}
 			onCloseVoting={() => room?.closeVoting()}
+			votingMode={room.votingMode}
+			spectrumVoters={room.spectrumVoters}
+			mySpectrumValue={room.mySpectrumValue}
+			onSpectrumVote={(value) => room?.voteSpectrum(value)}
 		/>
 	{/if}
 {:else}
@@ -242,6 +253,24 @@
 		font-weight: 600;
 		color: #888;
 		font-variant-numeric: tabular-nums;
+	}
+
+	.mode-btn {
+		background: transparent;
+		border: 1.5px solid #53d8fb;
+		color: #53d8fb;
+		padding: 6px 20px;
+		border-radius: 6px;
+		font-size: 0.9rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.2s;
+		font-family: inherit;
+	}
+
+	.mode-btn:hover {
+		background: #53d8fb;
+		color: #1a1a2e;
 	}
 
 	.reset-btn {

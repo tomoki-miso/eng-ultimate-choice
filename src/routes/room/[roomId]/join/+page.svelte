@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { RoomState } from '$lib/firebase/roomState.svelte';
 	import VoteBar from '$lib/components/VoteBar.svelte';
+	import SpectrumSlider from '$lib/components/SpectrumSlider.svelte';
+	import SpectrumBar from '$lib/components/SpectrumBar.svelte';
 
 	let { data } = $props();
 	let room = $state<RoomState | null>(null);
@@ -12,13 +14,24 @@
 		return room.questions.find((q) => q.id === room!.currentQuestionId) ?? null;
 	});
 
+	let spectrumValue = $state(50);
+
 	let state = $derived.by(() => {
 		if (!joined) return 'name-entry' as const;
 		if (!room?.connected) return 'connecting' as const;
 		if (!currentQuestion) return 'waiting' as const;
+		if (room.votingMode === 'spectrum' && room.votingOpen) return 'spectrum' as const;
 		if (room.myVote) return 'voted' as const;
 		if (room.votingOpen) return 'voting' as const;
 		return 'waiting' as const;
+	});
+
+	// Auto-submit initial spectrum value when entering spectrum mode
+	$effect(() => {
+		if (state === 'spectrum' && room && room.mySpectrumValue === null) {
+			spectrumValue = 50;
+			room.voteSpectrum(50);
+		}
 	});
 
 	function join() {
@@ -73,6 +86,24 @@
 				<p class="participant-info">参加者: {room.participantCount}人</p>
 			{/if}
 		</div>
+	{:else if state === 'spectrum' && currentQuestion && room}
+		<div class="spectrum-display">
+			<div class="question-summary">
+				<p class="choice-text">
+					<span class="label-inline a">A</span> {currentQuestion.choiceA}
+				</p>
+				<p class="choice-text">
+					<span class="label-inline b">B</span> {currentQuestion.choiceB}
+				</p>
+			</div>
+			<SpectrumSlider
+				value={spectrumValue}
+				choiceA={currentQuestion.choiceA}
+				choiceB={currentQuestion.choiceB}
+				onValueChange={(v) => { spectrumValue = v; room?.voteSpectrum(v); }}
+			/>
+			<SpectrumBar spectrumVoters={room.spectrumVoters} />
+		</div>
 	{:else if state === 'voting' && currentQuestion}
 		<div class="question-display">
 			<div class="choice-btn-wrapper">
@@ -100,7 +131,7 @@
 					<span class="label-inline b">B</span> {currentQuestion.choiceB}
 				</p>
 			</div>
-			<VoteBar votes={room.votes} />
+			<VoteBar votes={room.votes} voterNames={room.voterNames} />
 		</div>
 	{/if}
 </div>
@@ -360,5 +391,15 @@
 	.label-inline.b {
 		background: #53d8fb;
 		color: #1a1a2e;
+	}
+
+	.spectrum-display {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 24px;
+		padding: 0 8px;
 	}
 </style>
